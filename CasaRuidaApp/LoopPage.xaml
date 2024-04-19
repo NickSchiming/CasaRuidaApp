@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="CasaRuidaApp.LoopPage"
+             NavigationPage.HasNavigationBar="False">
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="1*"/>
+            <ColumnDefinition Width="2*"/>
+        </Grid.ColumnDefinitions>
+
+        <Image x:Name="AlbumCover"
+               Source="album_cover.jpg" 
+               Aspect="AspectFill" 
+               VerticalOptions="Center" 
+               HorizontalOptions="FillAndExpand" 
+               Grid.Column="0"
+               Margin="10" />
+
+        <StackLayout Grid.Column="1" Padding="10">
+
+            <ProgressBar x:Name="ProgressBar"
+             Progress="0.5" 
+             VerticalOptions="End" 
+             HorizontalOptions="FillAndExpand"
+             Margin="0,10,0,0"/>
+            
+            <Label x:Name="ArtistName"
+                   Text="Nome do Artista" 
+                   FontSize="40" 
+                   HorizontalOptions="Start"
+                   FontAttributes="Bold"
+                   Margin="0,10,0,0"/>
+
+            <Label x:Name="SongName"
+                   Text="Nome da Música" 
+                   FontSize="30" 
+                   HorizontalOptions="Start" 
+                   FontAttributes="Bold"
+                   Margin="0,10,0,0"/>
+
+            
+        </StackLayout>
+    </Grid>
+</ContentPage>
