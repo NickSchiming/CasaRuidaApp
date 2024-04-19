@@ -6,13 +6,11 @@ namespace CasaRuidaApp
 {
     public static class MauiProgram
     {
-
         public static string clientId = "2b0326e4249f44b8b4f1a6166612f96b";
         public static string clientSecret = "bfccecc6d5194525ab83cb7a3665f479";
-
-
         public static string redirectUri = "";
         public static string localIp = "";
+
         public static MauiApp CreateMauiApp()
         {
             var builder = MauiApp.CreateBuilder();
@@ -25,7 +23,6 @@ namespace CasaRuidaApp
                 });
 
             localIp = GetLocalIPAddress();
-
             redirectUri = $"http://{localIp}:8040/callback/";
 
 #if DEBUG
@@ -37,29 +34,12 @@ namespace CasaRuidaApp
 
         private static string GetLocalIPAddress()
         {
-            foreach (var netInterface in NetworkInterface.GetAllNetworkInterfaces())
-            {
-                ////if (netInterface.NetworkInterfaceType == NetworkInterfaceType.Wireless80211 ||
-                ////    netInterface.NetworkInterfaceType == NetworkInterfaceType.Ethernet)
-                ////{
-                //    foreach (var addrInfo in netInterface.GetIPProperties().UnicastAddresses)
-                //    {
-                //        if (addrInfo.Address.AddressFamily == AddressFamily.InterNetwork)
-                //        {
-                //            return addrInfo.Address.ToString();
-                //        }
-                //    }
-                ////}
-                ///
-                var ipAddress = NetworkInterface.GetAllNetworkInterfaces()
-                    .SelectMany(ni => ni.GetIPProperties().UnicastAddresses)
-                    .FirstOrDefault(ip => ip.Address.AddressFamily == AddressFamily.InterNetwork)?
-                    .Address.ToString();
+            var ipAddress = NetworkInterface.GetAllNetworkInterfaces()
+                .SelectMany(ni => ni.GetIPProperties().UnicastAddresses)
+                .FirstOrDefault(ip => ip.Address.AddressFamily == AddressFamily.InterNetwork)?
+                .Address.ToString();
 
-                return ipAddress;
-            }
-
-            return null;
+            return ipAddress ?? string.Empty;
         }
     }
 }

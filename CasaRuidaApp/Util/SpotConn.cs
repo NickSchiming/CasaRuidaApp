@@ -13,39 +13,39 @@ namespace CasaRuidaApp.Util
     public class SpotConn
     {
         #region private
-        private string accessToken = String.Empty;
-        private string refreshToken = String.Empty;
+        
         bool isPlaying = false;
+        private RestClient client = new RestClient();
+        private RestRequest request;
         #endregion
 
         #region public
+        public string accessToken = String.Empty;
+        public string refreshToken = String.Empty;
         public bool accessTokenSet = false;
         public long tokenStartTime;
         public int tokenExpireTime;
         public SongDetails currentSong = new SongDetails();
         public float currentSongPositionMs;
         float lastSongPositionMs;
-        public RestClient client = new RestClient();
-        public RestRequest request ;
-        public string AlbumImagePath { get; private set; }
+        public string? AlbumImagePath { get; private set; }
         #endregion
 
+        private void PrepareRequest(string resource, string auth, string requestBody)
+        {
+            request.Resource = resource;
+            request.AddHeader("Authorization", auth);
+            request.AddHeader("Content-Type", "application/x-www-form-urlencoded");
+            request.AddBody(requestBody);
+        }
         public void GetUserCode(string code)
         {
             request = new RestRequest();
-
-
-            request.Resource = "https://accounts.spotify.com/api/token";
             string auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{MauiProgram.clientId}:{MauiProgram.clientSecret}"));
-            request.AddHeader("Authorization", "Basic " + auth);
-            request.AddHeader("Content-Type", "application/x-www-form-urlencoded");
+            string requestBody = $"grant_type=authorization_code&code={code}&redirect_uri={MauiProgram.redirectUri}";
+            PrepareRequest("https://accounts.spotify.com/api/token", "Basic " + auth, requestBody);
 
-            string requestBody = "grant_type=authorization_code&code=" + code + "&redirect_uri=" + MauiProgram.redirectUri;
-
-            request.AddBody(requestBody);
-
-            RestResponse response = null;
-            response = client.Execute(request, Method.Post);
+            RestResponse response = client.Execute(request, Method.Post);
 
             if (response.StatusCode == HttpStatusCode.OK)
             {
@@ -61,20 +61,12 @@ namespace CasaRuidaApp.Util
 
         public void RefreshAuth()
         {
-            RestClient client = new RestClient();
-            RestRequest request = new RestRequest();
-
-            request.Resource = "https://accounts.spotify.com/api/token";
+            request = new RestRequest();
             string auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{MauiProgram.clientId}:{MauiProgram.clientSecret}"));
-            request.AddHeader("Authorization", "Basic " + auth);
-            request.AddHeader("Content-Type", "application/x-www-form-urlencoded");
+            string requestBody = $"grant_type=refresh_token&refresh_token={refreshToken}";
+            PrepareRequest("https://accounts.spotify.com/api/token", "Basic " + auth, requestBody);
 
-            string requestBody = "grant_type=refresh_token&refresh_token=" + refreshToken;
-
-            request.AddBody(requestBody);
-
-            RestResponse response = null;
-            response = client.Execute(request, Method.Post);
+            RestResponse response = client.Execute(request, Method.Post);
 
             if (response.StatusCode == HttpStatusCode.OK)
             {
@@ -91,15 +83,11 @@ namespace CasaRuidaApp.Util
 
         public void GetTrackInfo()
         {
-            RestClient client = new RestClient();
-            RestRequest request = new RestRequest();
-
+            request = new RestRequest();
             request.Resource = "https://api.spotify.com/v1/me/player/currently-playing";
-            string auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{MauiProgram.clientId}:{MauiProgram.clientSecret}"));
             request.AddHeader("Authorization", "Bearer " + accessToken);
 
-            RestResponse response = null;
-            response = client.Execute(request, Method.Get);
+            RestResponse response = client.Execute(request, Method.Get);
 
             if (response.StatusCode == HttpStatusCode.OK)
             {

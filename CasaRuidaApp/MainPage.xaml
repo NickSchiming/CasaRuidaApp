@@ -9,7 +9,7 @@
             Spacing="25">
             <Image
                 Source="logo_spotify.png"
-                HeightRequest="185"
+                HeightRequest="120"
                 Aspect="AspectFit"
                 SemanticProperties.Description="dot net bot in a race car number eight" />
 
@@ -18,17 +18,16 @@
                 Style="{StaticResource Headline}"
                 SemanticProperties.HeadingLevel="Level1" />
 
-            <Label
-                Text="App feito com carinho para a Casa Ruída"
-                Style="{StaticResource SubHeadline}"
-                SemanticProperties.HeadingLevel="Level2"
-                SemanticProperties.Description="Welcome to dot net Multi platform App U I" />
-
             <Button
                 x:Name="ConnectBtn"
                 Text="Conectar" 
-                SemanticProperties.Hint="Counts the number of times you click"
                 Clicked="OnConnectClicked"
+                HorizontalOptions="Fill" />
+
+            <Button
+                x:Name="ConnectOtherBtn"
+                Text="Conectar Outro Spotify" 
+                Clicked="OnConnectOtherClicked"
                 HorizontalOptions="Fill" />
 
             <Label
