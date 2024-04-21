@@ -2,7 +2,8 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="CasaRuidaApp.LoopPage"
-             NavigationPage.HasNavigationBar="False">
+             NavigationPage.HasNavigationBar="False"
+             BackgroundColor="#121212">
 
     <Grid>
         <Grid.ColumnDefinitions>
@@ -24,22 +25,25 @@
              Progress="0.0" 
              VerticalOptions="End" 
              HorizontalOptions="FillAndExpand"
-             Margin="0,10,0,0"/>
-            
+             Margin="0,10,0,0"
+             ProgressColor="White"/>
+
             <Label x:Name="ArtistName"
                    Text="Aguardando Música" 
-                   FontSize="50" 
+                   FontSize="73" 
                    HorizontalOptions="Start"
                    FontAttributes="Bold"
-                   Margin="0,5,0,0"/>
+                   Margin="0,5,0,0"
+                   TextColor="White"/>
 
             <Label x:Name="SongName"
                    Text="Toque alguma música no spotify conectado" 
-                   FontSize="50" 
+                   FontSize="73" 
                    HorizontalOptions="Start" 
-                   Margin="0,5,0,0"/>
+                   Margin="0,5,0,0"
+                   TextColor="White"/>
 
-            
+
         </StackLayout>
     </Grid>
 </ContentPage>
