@@ -36,6 +36,12 @@
             Style="{StaticResource SubHeadline}"
             SemanticProperties.HeadingLevel="Level2"
             SemanticProperties.Description="Output label" />
+
+            <Image
+                x:Name="QRCode"
+                HeightRequest="100"
+                Aspect="AspectFit"/>
+
         </VerticalStackLayout>
     </ScrollView>
 

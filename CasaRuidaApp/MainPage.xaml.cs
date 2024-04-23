@@ -1,4 +1,7 @@
-﻿using System.Net;
+﻿using QRCoder;
+using System.Net;
+using System.Net.NetworkInformation;
+using System.Reflection.Emit;
 
 namespace CasaRuidaApp
 {
@@ -67,10 +70,22 @@ namespace CasaRuidaApp
 
         private async Task UpdateOutputLabel()
         {
+            var qrGenerator = new QRCodeGenerator();
+            QRCodeData qrCodeData = qrGenerator.CreateQrCode(url, QRCodeGenerator.ECCLevel.Q);
+            var qrCode = new PngByteQRCode(qrCodeData);
+            byte[] qrCodeImage = qrCode.GetGraphic(20);
+
             await this.Dispatcher.DispatchAsync(() =>
             {
+                 
+
                 var tapGestureRecognizer = new TapGestureRecognizer();
                 tapGestureRecognizer.Tapped += async (s, ee) => await Microsoft.Maui.ApplicationModel.Launcher.OpenAsync(new Uri(url));
+
+                this.QRCode.Source = ImageSource.FromStream(() =>
+                {
+                    return new MemoryStream(qrCodeImage);
+                });
 
                 OutputLabel.FormattedText = new FormattedString
                 {
@@ -82,6 +97,7 @@ namespace CasaRuidaApp
                 };
             });
         }
+
 
         private async Task HandleRequests()
         {
@@ -187,6 +203,8 @@ namespace CasaRuidaApp
                                 <a href='https://accounts.spotify.com/authorize?response_type=code&client_id={MauiProgram.clientId}&redirect_uri={callbackUrl}&scope={scopes}' class='auth-button'>Clique para autorizar o Spotify</a>
                             </body>
                         </html>";
+
+
 
             byte[] buffer = System.Text.Encoding.UTF8.GetBytes(responseString);
             response.ContentLength64 = buffer.Length;
