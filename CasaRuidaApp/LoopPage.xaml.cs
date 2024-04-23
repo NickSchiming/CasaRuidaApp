@@ -1,6 +1,5 @@
-using CasaRuidaApp.Util;
-using System.Diagnostics;
 using System.Security.Cryptography;
+
 
 namespace CasaRuidaApp
 {
@@ -8,11 +7,20 @@ namespace CasaRuidaApp
     {
         private long refreshLoop = 0;
         private string currentImageHash;
+
         public LoopPage()
         {
             InitializeComponent();
             Shell.SetNavBarIsVisible(this, false);
+            currentImageHash = string.Empty;
             StartLoop();
+
+            this.Appearing += OnAppearing;
+        }
+
+        private void OnAppearing(object sender, EventArgs e)
+        {
+            DeviceDisplay.Current.KeepScreenOn = true;
         }
 
         private async void StartLoop()
@@ -36,7 +44,7 @@ namespace CasaRuidaApp
                         {
                             App.SpotConnection.GetTrackInfo();
                             refreshLoop = App.stopwatch.ElapsedMilliseconds;
-                            await this.Dispatcher.DispatchAsync(async () =>
+                            await this.Dispatcher.DispatchAsync(() =>
                             {
                                 if (App.SpotConnection.AlbumImagePath != null)
                                 {
@@ -61,9 +69,9 @@ namespace CasaRuidaApp
                     }
                     else
                     {
-                        this.Dispatcher.Dispatch(async () =>
+                        await this.Dispatcher.DispatchAsync(() =>
                         {
-                            await Shell.Current.GoToAsync("///MainPage");
+                            Shell.Current.GoToAsync("///MainPage");
                         });
                     }
                 }
