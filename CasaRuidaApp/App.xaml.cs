@@ -3,19 +3,23 @@ using System.Diagnostics;
 
 namespace CasaRuidaApp
 {
-    public partial class App : Application
+    public partial class App
     {
-        public static SpotConn SpotConnection { get; set; }
-        public static Stopwatch stopwatch { get; set; }
+        public static SpotConn SpotConnection { get; set; } = null!;
+        public static Stopwatch Stopwatch { get; set; } = null!;
+
         public App()
         {
             InitializeComponent();
 
             Routing.RegisterRoute(nameof(LoopPage), typeof(LoopPage));
             MainPage = new AppShell();
-            SpotConnection = new SpotConn();
-            stopwatch = new Stopwatch();
-            stopwatch.Start();
+            string currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            string directoryPath = Path.Combine(currentDirectory, "resources", "images");
+            Directory.CreateDirectory(directoryPath);
+            SpotConnection = new SpotConn(directoryPath);
+            Stopwatch = new Stopwatch();
+            Stopwatch.Start();
         }
 
     }

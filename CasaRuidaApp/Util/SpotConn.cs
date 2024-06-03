@@ -1,130 +1,123 @@
 ﻿using CasaRuidaApp.Models;
 using Newtonsoft.Json;
-using RestSharp;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
+using System.Net.Http.Headers;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace CasaRuidaApp.Util
 {
     public class SpotConn
     {
-        #region private
-        
-        bool isPlaying = false;
-        private RestClient client = new RestClient();
-        private RestRequest request;
-        #endregion
-
-        #region public
-        public string accessToken = String.Empty;
-        public string refreshToken = String.Empty;
-        public bool accessTokenSet = false;
-        public long tokenStartTime;
-        public int tokenExpireTime;
-        public SongDetails currentSong = new SongDetails();
-        public float currentSongPositionMs;
-        float lastSongPositionMs;
+        private static readonly HttpClient HttpClient = new HttpClient();
+        public string AccessToken = string.Empty;
+        public string RefreshToken = string.Empty;
+        public bool AccessTokenSet;
+        public long TokenStartTime;
+        public int TokenExpireTime;
+        public SongDetails CurrentSong = new SongDetails();
+        public float CurrentSongPositionMs;
         public string? AlbumImagePath { get; private set; }
-        #endregion
+        private string DirectoryPath { get; }
 
-        private void PrepareRequest(string resource, string auth, string requestBody)
+        public SpotConn(string directoryPath)
         {
-            request.Resource = resource;
-            request.AddHeader("Authorization", auth);
-            request.AddHeader("Content-Type", "application/x-www-form-urlencoded");
-            request.AddBody(requestBody);
+            HttpClient.DefaultRequestHeaders.Accept.Clear();
+            HttpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            this.DirectoryPath = directoryPath;
         }
-        public void GetUserCode(string code)
+
+        private async Task<string> SendRequestAsync(string url, HttpMethod method, string auth = "", HttpContent? content = null)
         {
-            request = new RestRequest();
-            string auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{MauiProgram.clientId}:{MauiProgram.clientSecret}"));
-            string requestBody = $"grant_type=authorization_code&code={code}&redirect_uri={MauiProgram.redirectUri}";
-            PrepareRequest("https://accounts.spotify.com/api/token", "Basic " + auth, requestBody);
-
-            RestResponse response = client.Execute(request, Method.Post);
-
-            if (response.StatusCode == HttpStatusCode.OK)
+            var request = new HttpRequestMessage(method, url);
+            if (!string.IsNullOrEmpty(auth))
             {
-                var json = JsonConvert.DeserializeObject<Token>(response.Content);
-                accessToken = json.access_token;
-                refreshToken = json.refresh_token;
-                accessTokenSet = true;
-                tokenStartTime = App.stopwatch.ElapsedMilliseconds;
-                tokenExpireTime = json.expires_in;
+                request.Headers.Authorization = new AuthenticationHeaderValue("Basic", auth);
+            }
+            if (content != null)
+            {
+                request.Content = content;
             }
 
+            HttpResponseMessage response = await HttpClient.SendAsync(request);
+            return await response.Content.ReadAsStringAsync();
         }
 
-        public void RefreshAuth()
+        public async Task GetUserCode(string code)
         {
-            request = new RestRequest();
-            string auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{MauiProgram.clientId}:{MauiProgram.clientSecret}"));
-            string requestBody = $"grant_type=refresh_token&refresh_token={refreshToken}";
-            PrepareRequest("https://accounts.spotify.com/api/token", "Basic " + auth, requestBody);
+            string auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{MauiProgram.ClientId}:{MauiProgram.ClientSecret}"));
+            string requestBody = $"grant_type=authorization_code&code={code}&redirect_uri={MauiProgram.RedirectUri}";
+            var content = new StringContent(requestBody, Encoding.UTF8, "application/x-www-form-urlencoded");
+            string response = await SendRequestAsync("https://accounts.spotify.com/api/token", HttpMethod.Post, auth, content);
 
-            RestResponse response = client.Execute(request, Method.Post);
-
-            if (response.StatusCode == HttpStatusCode.OK)
+            var token = JsonConvert.DeserializeObject<Token>(response);
+            if (token != null)
             {
-                var json = JsonConvert.DeserializeObject<Token>(response.Content);
-                accessToken = json.access_token;
-                //refreshToken = json.refresh_token;
-                accessTokenSet = true;
-                tokenStartTime = App.stopwatch.ElapsedMilliseconds;
-                tokenExpireTime = json.expires_in;
+                AccessToken = token.access_token;
+                RefreshToken = token.refresh_token;
+                AccessTokenSet = true;
+                TokenStartTime = App.Stopwatch.ElapsedMilliseconds;
+                TokenExpireTime = token.expires_in;
+            }
+        }
+
+        public async Task RefreshAuth()
+        {
+            string auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{MauiProgram.ClientId}:{MauiProgram.ClientSecret}"));
+            string requestBody = $"grant_type=refresh_token&refresh_token={RefreshToken}";
+            var content = new StringContent(requestBody, Encoding.UTF8, "application/x-www-form-urlencoded");
+            string response = await SendRequestAsync("https://accounts.spotify.com/api/token", HttpMethod.Post, auth, content);
+
+            var token = JsonConvert.DeserializeObject<Token>(response);
+            if (token != null)
+            {
+                AccessToken = token.access_token;
+                AccessTokenSet = true;
+                TokenStartTime = App.Stopwatch.ElapsedMilliseconds;
+                TokenExpireTime = token.expires_in;
+            }
+        }
+
+        public async Task<bool> GetTrackInfo()
+        {
+            if (string.IsNullOrEmpty(AccessToken))
+            {
+                return false;
             }
 
+            HttpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", AccessToken);
+            string response = await HttpClient.GetStringAsync("https://api.spotify.com/v1/me/player/currently-playing");
 
+            var currentlyPlaying = JsonConvert.DeserializeObject<CurentlyPlaying>(response);
+            if (currentlyPlaying == null) return false;
+
+            CurrentSong.durationMs = currentlyPlaying.item.duration_ms;
+            CurrentSongPositionMs = currentlyPlaying.progress_ms;
+            string imageLink = currentlyPlaying.item.album.images[0].url;
+
+            string localPath = Path.Combine(DirectoryPath, $"albumImage_{DateTime.Now.Ticks}.png");
+
+            if (File.Exists(AlbumImagePath))
+            {
+                File.Delete(AlbumImagePath);
+            }
+
+            await DownloadAlbumImageAsync(imageLink, localPath);
+
+            AlbumImagePath = localPath;
+
+            CurrentSong.artist = currentlyPlaying.item.artists[0].name;
+            CurrentSong.song = currentlyPlaying.item.name;
+            CurrentSong.durationMs = currentlyPlaying.item.duration_ms;
+            return true;
         }
 
-        public void GetTrackInfo()
+        private static async Task DownloadAlbumImageAsync(string imageLink, string localPath)
         {
-            request = new RestRequest();
-            request.Resource = "https://api.spotify.com/v1/me/player/currently-playing";
-            request.AddHeader("Authorization", "Bearer " + accessToken);
-
-            RestResponse response = client.Execute(request, Method.Get);
-
-            if (response.StatusCode == HttpStatusCode.OK)
+            HttpResponseMessage response = await HttpClient.GetAsync(imageLink);
+            if (response.IsSuccessStatusCode)
             {
-                try
-                {
-                    var json = JsonConvert.DeserializeObject<CurentlyPlaying>(response.Content);
-                    currentSong.durationMs = json.item.duration_ms;
-                    currentSongPositionMs = json.progress_ms;
-                    string imageLink = json.item.album.images[0].url;
-
-                    string currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
-                    string directoryPath = Path.Combine(currentDirectory, "resources", "images");
-                    Directory.CreateDirectory(directoryPath); // Cria o diretório se ele não existir
-                    string localPath = Path.Combine(directoryPath, $"albumImage_{DateTime.Now.Ticks}.png");
-                    
-
-                    if (File.Exists(AlbumImagePath))
-                    {
-                        File.Delete(AlbumImagePath);
-                    }
-
-                    using (WebClient imageClient = new WebClient())
-                    {
-                        imageClient.DownloadFile(new Uri(imageLink), localPath);
-                    }
-
-                    AlbumImagePath = localPath;
-
-                    currentSong.artist = json.item.artists[0].name;
-                    currentSong.song = json.item.name;
-                    currentSong.durationMs = json.item.duration_ms;
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine(ex.Message);
-                }
-
+                await using var stream = await response.Content.ReadAsStreamAsync();
+                await using var fileStream = new FileStream(localPath, FileMode.Create, FileAccess.Write, FileShare.None);
+                await stream.CopyToAsync(fileStream);
             }
         }
     }

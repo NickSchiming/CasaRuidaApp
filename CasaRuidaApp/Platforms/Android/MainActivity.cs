@@ -12,8 +12,8 @@ namespace CasaRuidaApp
         {
             base.OnCreate(savedInstanceState);
 
-            Window.AddFlags(WindowManagerFlags.Fullscreen);
-            Window.ClearFlags(WindowManagerFlags.ForceNotFullscreen);
+            Window?.AddFlags(WindowManagerFlags.Fullscreen);
+            Window?.ClearFlags(WindowManagerFlags.ForceNotFullscreen);
         }
     }
 }
