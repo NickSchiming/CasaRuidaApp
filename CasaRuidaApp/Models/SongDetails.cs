@@ -9,11 +9,11 @@ namespace CasaRuidaApp.Models
     public class SongDetails
     {
         public int durationMs { get; set; }
-        public string album { get; set; }
+        //public string album { get; set; }
 
-        public string artist { get; set; }
+        public string? artist { get; set; }
 
-        public string song { get; set; }
+        public string? song { get; set; }
 
     }
 }

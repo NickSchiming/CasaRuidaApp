@@ -5,8 +5,8 @@ namespace CasaRuidaApp
 {
     public partial class App
     {
-        public static SpotConn SpotConnection { get; set; } = null!;
-        public static Stopwatch Stopwatch { get; set; } = null!;
+        public static SpotConn spotConnection { get; private set; } = null!;
+        public static Stopwatch stopwatch { get; private set; } = null!;
 
         public App()
         {
@@ -14,12 +14,12 @@ namespace CasaRuidaApp
 
             Routing.RegisterRoute(nameof(LoopPage), typeof(LoopPage));
             MainPage = new AppShell();
-            string currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
-            string directoryPath = Path.Combine(currentDirectory, "resources", "images");
+            var currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            var directoryPath = Path.Combine(currentDirectory, "resources", "images");
             Directory.CreateDirectory(directoryPath);
-            SpotConnection = new SpotConn(directoryPath);
-            Stopwatch = new Stopwatch();
-            Stopwatch.Start();
+            spotConnection = new SpotConn(directoryPath);
+            stopwatch = new Stopwatch();
+            stopwatch.Start();
         }
 
     }

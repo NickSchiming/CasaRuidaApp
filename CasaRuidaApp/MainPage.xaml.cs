@@ -5,37 +5,58 @@ namespace CasaRuidaApp
 {
     public partial class MainPage
     {
-        private readonly HttpListener _listener;
-        private readonly string _url;
-        private readonly string _callbackUrl;
+        private readonly HttpListener _listener = new();
         public bool ContinueListening = true;
+        private readonly string _url = MauiProgram.Url;
+        private readonly string _callbackurl = MauiProgram.CallbackUrl;
+        private readonly string? _error;
 
-        public static MainPage? Instance { get; private set; }
+        //public static MainPage Instance = null!;
 
         public MainPage()
         {
             InitializeComponent();
-            Instance = this;
-            _url = $"http://{MauiProgram.LocalIp}:8040/";
-            _callbackUrl = MauiProgram.RedirectUri;
-            _listener = new HttpListener();
+            //Instance = this;
+
+            Loaded += MainPage_Loaded!;
+
+            if (_url.Equals("Erro"))
+            {
+                _error = "Não foi possível pegar endereço de IP do dispositivo!";
+                return;
+            }
+
             _listener.Prefixes.Add(_url);
-            _listener.Prefixes.Add(_callbackUrl);
-            
+            _listener.Prefixes.Add(_callbackurl);
+
+        }
+
+        protected override void OnNavigatingFrom(NavigatingFromEventArgs args)
+        {
+            base.OnNavigatingFrom(args);
+            StopListening();
+        }
+
+        private void MainPage_Loaded(object sender, EventArgs e)
+        {
+            if (!string.IsNullOrEmpty(_error))
+            {
+                DisplayAlert("Erro", _error, "OK");
+            }
         }
 
         private async void OnConnectClicked(object sender, EventArgs e)
         {
             if (DeviceInfo.Platform != DevicePlatform.WinUI)
             {
-                App.SpotConnection.AccessToken = Xamarin.Essentials.Preferences.Get("Token", null);
-                App.SpotConnection.RefreshToken = Xamarin.Essentials.Preferences.Get("RefreshToken", null);
+                App.spotConnection.AccessToken = Preferences.Get("Token", null);
+                App.spotConnection.RefreshToken = Preferences.Get("RefreshToken", null);
             }
             
 
-            if (App.SpotConnection.AccessToken != null)
+            if (App.spotConnection.AccessToken != null)
             {
-                App.SpotConnection.AccessTokenSet = true;
+                App.spotConnection.AccessTokenSet = true;
                 Dispatcher.Dispatch(() =>
                     {
                         Shell.Current.GoToAsync(nameof(LoopPage));
@@ -69,21 +90,16 @@ namespace CasaRuidaApp
         private async Task UpdateOutputLabel()
         {
             var qrGenerator = new QRCodeGenerator();
-            QRCodeData qrCodeData = qrGenerator.CreateQrCode(_url, QRCodeGenerator.ECCLevel.Q);
+            var qrCodeData = qrGenerator.CreateQrCode(MauiProgram.Url, QRCodeGenerator.ECCLevel.Q);
             var qrCode = new PngByteQRCode(qrCodeData);
-            byte[] qrCodeImage = qrCode.GetGraphic(20);
+            var qrCodeImage = qrCode.GetGraphic(20);
 
-            await this.Dispatcher.DispatchAsync(() =>
+            await Dispatcher.DispatchAsync(() =>
             {
-                 
-
                 var tapGestureRecognizer = new TapGestureRecognizer();
                 tapGestureRecognizer.Tapped += async (_, _) => await Launcher.OpenAsync(new Uri(_url));
 
-                this.QRCode.Source = ImageSource.FromStream(() =>
-                {
-                    return new MemoryStream(qrCodeImage);
-                });
+                QRCode.Source = ImageSource.FromStream(() => new MemoryStream(qrCodeImage));
 
                 OutputLabel.FormattedText = new FormattedString
                 {
@@ -103,9 +119,9 @@ namespace CasaRuidaApp
             {
                 try
                 {
-                    HttpListenerContext context = await _listener.GetContextAsync();
-                    HttpListenerRequest request = context.Request;
-                    HttpListenerResponse response = context.Response;
+                    var context = await _listener.GetContextAsync();
+                    var request = context.Request;
+                    var response = context.Response;
 
                     if (request.RawUrl?.StartsWith("/callback") == true)
                     {
@@ -113,7 +129,7 @@ namespace CasaRuidaApp
                     }
                     if (request.RawUrl == "/")
                     {
-                        ShowAuthPage(response, _callbackUrl);
+                        ShowAuthPage(response, _callbackurl);
                     }
                 }
                 catch (Exception ex)
@@ -125,23 +141,22 @@ namespace CasaRuidaApp
 
         private async Task HandleCallbackRequest(HttpListenerResponse response, HttpListenerRequest request)
         {
-            if (!App.SpotConnection.AccessTokenSet)
+            if (!App.spotConnection.AccessTokenSet)
             {
-                string code = request.QueryString["code"] ?? string.Empty;
-                if (code == string.Empty)
+                var code = request.QueryString["code"];
+                if (code == null)
                 {
-                    MainPage.ShowAuthPage(response, _callbackUrl, true);
+                    ShowAuthPage(response, _callbackurl, true);
                 }
                 else
                 {
-                    
-                    await App.SpotConnection.GetUserCode(code);
+                    await App.spotConnection.GetUserCode(code);
                     if (DeviceInfo.Platform != DevicePlatform.WinUI)
                     {
-                        Xamarin.Essentials.Preferences.Set("Token", App.SpotConnection.AccessToken);
-                        Xamarin.Essentials.Preferences.Set("RefreshToken", App.SpotConnection.RefreshToken);
+                        Preferences.Set("Token", App.spotConnection.AccessToken);
+                        Preferences.Set("RefreshToken", App.spotConnection.RefreshToken);
                     }
-                    await this.Dispatcher.DispatchAsync(async () =>
+                    await Dispatcher.DispatchAsync(async () =>
                     {
                         await Shell.Current.GoToAsync(nameof(LoopPage));
                     });
@@ -149,7 +164,7 @@ namespace CasaRuidaApp
             }
             else
             {
-                await this.Dispatcher.DispatchAsync(async () =>
+                await Dispatcher.DispatchAsync(async () =>
                 {
                     await Shell.Current.GoToAsync(nameof(LoopPage));
                 });
@@ -167,49 +182,49 @@ namespace CasaRuidaApp
 
         private static async void ShowAuthPage(HttpListenerResponse response, string callbackUrl, bool erro = false)
         {
-            string scopes = "user-read-currently-playing user-read-playback-state";
-            string responseString = $$"""
-                                      
-                                                              <html>
-                                                                  <head>
-                                                                      <style>
-                                                                          body {
-                                                                              display: flex;
-                                                                              justify-content: center;
-                                                                              align-items: center;
-                                                                              height: 100vh;
-                                                                              margin: 0;
-                                                                              background-color: #121212;
-                                                                              color: white;
-                                                                              font-family: Arial, sans-serif;
-                                                                          }
-                                                                          .auth-button {
-                                                                              font-size: 2em;
-                                                                              padding: 20px 40px;
-                                                                              text-decoration: none;
-                                                                              background-color: #1DB954;
-                                                                              color: white;
-                                                                              border-radius: 50px;
-                                                                              transition: background-color 0.5s;
-                                                                          }
-                                                                          .auth-button:hover {
-                                                                              background-color: #1ED760;
-                                                                          }
-                                                                      </style>
-                                                                  </head>
-                                                                  <body>
-                                                                      {{(erro ? "<h1>Erro ao autorizar o Spotify, tente noavemente</h1>" : "")}}
-                                                                      <a href='https://accounts.spotify.com/authorize?response_type=code&client_id={{MauiProgram.ClientId}}&redirect_uri={{callbackUrl}}&scope={{scopes}}' class='auth-button'>Clique para autorizar o Spotify</a>
-                                                                  </body>
-                                                              </html>
-                                      """;
+            const string scopes = "user-read-currently-playing user-read-playback-state";
+            var responseString = $$"""
+                                   
+                                                           <html>
+                                                               <head>
+                                                                   <style>
+                                                                       body {
+                                                                           display: flex;
+                                                                           justify-content: center;
+                                                                           align-items: center;
+                                                                           height: 100vh;
+                                                                           margin: 0;
+                                                                           background-color: #121212;
+                                                                           color: white;
+                                                                           font-family: Arial, sans-serif;
+                                                                       }
+                                                                       .auth-button {
+                                                                           font-size: 2em;
+                                                                           padding: 20px 40px;
+                                                                           text-decoration: none;
+                                                                           background-color: #1DB954;
+                                                                           color: white;
+                                                                           border-radius: 50px;
+                                                                           transition: background-color 0.5s;
+                                                                       }
+                                                                       .auth-button:hover {
+                                                                           background-color: #1ED760;
+                                                                       }
+                                                                   </style>
+                                                               </head>
+                                                               <body>
+                                                                   {{(erro ? "<h1>Erro ao autorizar o Spotify, tente noavemente</h1>" : "")}}
+                                                                   <a href='https://accounts.spotify.com/authorize?response_type=code&client_id={{MauiProgram.ClientId}}&redirect_uri={{callbackUrl}}&scope={{scopes}}' class='auth-button'>Clique para autorizar o Spotify</a>
+                                                               </body>
+                                                           </html>
+                                   """;
 
 
 
-            byte[] buffer = System.Text.Encoding.UTF8.GetBytes(responseString);
+            var buffer = System.Text.Encoding.UTF8.GetBytes(responseString);
             response.ContentLength64 = buffer.Length;
-            Stream output = response.OutputStream;
-            await output.WriteAsync(buffer, 0, buffer.Length);
+            var output = response.OutputStream;
+            await output.WriteAsync(buffer);
             output.Close();
         }
     }

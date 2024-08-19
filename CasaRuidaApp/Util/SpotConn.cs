@@ -7,25 +7,25 @@ namespace CasaRuidaApp.Util
 {
     public class SpotConn
     {
-        private static readonly HttpClient HttpClient = new HttpClient();
-        public string AccessToken = string.Empty;
-        public string RefreshToken = string.Empty;
+        private static readonly HttpClient HttpClient = new();
+        public string? AccessToken = string.Empty;
+        public string? RefreshToken = string.Empty;
         public bool AccessTokenSet;
         public long TokenStartTime;
         public int TokenExpireTime;
-        public SongDetails CurrentSong = new SongDetails();
+        public readonly SongDetails CurrentSong = new();
         public float CurrentSongPositionMs;
-        public string? AlbumImagePath { get; private set; }
-        private string DirectoryPath { get; }
+        public string? albumImagePath { get; private set; }
+        private string directoryPath { get; }
 
         public SpotConn(string directoryPath)
         {
             HttpClient.DefaultRequestHeaders.Accept.Clear();
             HttpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-            this.DirectoryPath = directoryPath;
+            this.directoryPath = directoryPath;
         }
 
-        private async Task<string> SendRequestAsync(string url, HttpMethod method, string auth = "", HttpContent? content = null)
+        private static async Task<string> SendRequestAsync(string url, HttpMethod method, string auth = "", HttpContent? content = null)
         {
             var request = new HttpRequestMessage(method, url);
             if (!string.IsNullOrEmpty(auth))
@@ -37,16 +37,16 @@ namespace CasaRuidaApp.Util
                 request.Content = content;
             }
 
-            HttpResponseMessage response = await HttpClient.SendAsync(request);
+            var response = await HttpClient.SendAsync(request);
             return await response.Content.ReadAsStringAsync();
         }
 
         public async Task GetUserCode(string code)
         {
-            string auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{MauiProgram.ClientId}:{MauiProgram.ClientSecret}"));
-            string requestBody = $"grant_type=authorization_code&code={code}&redirect_uri={MauiProgram.RedirectUri}";
+            var auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{MauiProgram.ClientId}:{MauiProgram.ClientSecret}"));
+            var requestBody = $"grant_type=authorization_code&code={code}&redirect_uri={MauiProgram.CallbackUrl}";
             var content = new StringContent(requestBody, Encoding.UTF8, "application/x-www-form-urlencoded");
-            string response = await SendRequestAsync("https://accounts.spotify.com/api/token", HttpMethod.Post, auth, content);
+            var response = await SendRequestAsync("https://accounts.spotify.com/api/token", HttpMethod.Post, auth, content);
 
             var token = JsonConvert.DeserializeObject<Token>(response);
             if (token != null)
@@ -54,24 +54,24 @@ namespace CasaRuidaApp.Util
                 AccessToken = token.access_token;
                 RefreshToken = token.refresh_token;
                 AccessTokenSet = true;
-                TokenStartTime = App.Stopwatch.ElapsedMilliseconds;
+                TokenStartTime = App.stopwatch.ElapsedMilliseconds;
                 TokenExpireTime = token.expires_in;
             }
         }
 
         public async Task RefreshAuth()
         {
-            string auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{MauiProgram.ClientId}:{MauiProgram.ClientSecret}"));
-            string requestBody = $"grant_type=refresh_token&refresh_token={RefreshToken}";
+            var auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{MauiProgram.ClientId}:{MauiProgram.ClientSecret}"));
+            var requestBody = $"grant_type=refresh_token&refresh_token={RefreshToken}";
             var content = new StringContent(requestBody, Encoding.UTF8, "application/x-www-form-urlencoded");
-            string response = await SendRequestAsync("https://accounts.spotify.com/api/token", HttpMethod.Post, auth, content);
+            var response = await SendRequestAsync("https://accounts.spotify.com/api/token", HttpMethod.Post, auth, content);
 
             var token = JsonConvert.DeserializeObject<Token>(response);
             if (token != null)
             {
                 AccessToken = token.access_token;
                 AccessTokenSet = true;
-                TokenStartTime = App.Stopwatch.ElapsedMilliseconds;
+                TokenStartTime = App.stopwatch.ElapsedMilliseconds;
                 TokenExpireTime = token.expires_in;
             }
         }
@@ -84,35 +84,42 @@ namespace CasaRuidaApp.Util
             }
 
             HttpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", AccessToken);
-            string response = await HttpClient.GetStringAsync("https://api.spotify.com/v1/me/player/currently-playing");
+            var response = await HttpClient.GetStringAsync("https://api.spotify.com/v1/me/player/currently-playing");
 
             var currentlyPlaying = JsonConvert.DeserializeObject<CurentlyPlaying>(response);
-            if (currentlyPlaying == null) return false;
+
+            if (currentlyPlaying?.item == null) return false;
+
 
             CurrentSong.durationMs = currentlyPlaying.item.duration_ms;
             CurrentSongPositionMs = currentlyPlaying.progress_ms;
-            string imageLink = currentlyPlaying.item.album.images[0].url;
 
-            string localPath = Path.Combine(DirectoryPath, $"albumImage_{DateTime.Now.Ticks}.png");
+            var imageLink = currentlyPlaying.item.album?.images?[0].url;
 
-            if (File.Exists(AlbumImagePath))
+            var localPath = Path.Combine(directoryPath, $"albumImage_{DateTime.Now.Ticks}.png");
+
+            if (File.Exists(albumImagePath))
             {
-                File.Delete(AlbumImagePath);
+                File.Delete(albumImagePath);
             }
 
-            await DownloadAlbumImageAsync(imageLink, localPath);
+            if (imageLink != null)
+            {
+                await DownloadAlbumImageAsync(imageLink, localPath);
+                albumImagePath = localPath;
+            }
 
-            AlbumImagePath = localPath;
-
+            if (currentlyPlaying.item.artists == null) return false;
             CurrentSong.artist = currentlyPlaying.item.artists[0].name;
             CurrentSong.song = currentlyPlaying.item.name;
             CurrentSong.durationMs = currentlyPlaying.item.duration_ms;
+
             return true;
         }
 
         private static async Task DownloadAlbumImageAsync(string imageLink, string localPath)
         {
-            HttpResponseMessage response = await HttpClient.GetAsync(imageLink);
+            var response = await HttpClient.GetAsync(imageLink);
             if (response.IsSuccessStatusCode)
             {
                 await using var stream = await response.Content.ReadAsStreamAsync();
